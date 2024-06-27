@@ -1,0 +1,57 @@
+{
+  "configVersion": "v2",
+  "app": {
+    "appId": 1051097,
+    "appName": "Nightscout Watchface",
+    "appType": "watchface",
+    "version": {
+      "code": 2,
+      "name": "1.0.2"
+    },
+    "vender": "AdamD",
+    "description": "Nightscout watchface",
+    "icon": "images/preview.png"
+  },
+  "permissions": [],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "1.0.0",
+      "target": "1.0.2",
+      "minVersion": "1.0.0"
+    }
+  },
+  "targets": {
+    "band7": {
+      "module": {
+        "watchface": {
+          "path": "watchface/entry/band7/index",
+          "main": 1,
+          "editable": 1,
+          "lockscreen": 1
+        }
+      },
+      "platforms": [
+        {
+          "name": "band71",
+          "deviceSource": 252
+        },
+        {
+          "name": "band72",
+          "deviceSource": 253
+        },
+        {
+          "name": "band73",
+          "deviceSource": 254
+        }
+      ],
+      "designWidth": 194
+  }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Nightscout"
+    }
+  },
+  "defaultLanguage": "en-US",
+  "debug": true
+}

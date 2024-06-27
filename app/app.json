@@ -1,0 +1,60 @@
+{
+  "configVersion": "v2",
+  "app": {
+    "appId": 1051061,
+    "appName": "Nightscout",
+    "appType": "app",
+    "version": {
+      "code": 2,
+      "name": "1.0.2"
+    },
+    "icon": "icon.png",
+    "vender": "AdamD",
+    "description": "Nightscout data retriever for the watchface"
+  },
+  "permissions": ["data:os.device.info", "device:os.alarm", "device:os.ble"],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "1.0.0",
+      "target": "1.0.1",
+      "minVersion": "1.0.0"
+    }
+  },
+  "targets": {
+    "mi-band7": {
+      "module": {
+        "page": {
+          "pages": ["page/index", "page/wf-page"]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
+        }
+      },
+      "platforms": [
+        {
+          "name": "band7",
+          "deviceSource": 252
+        },
+        {
+          "name": "band7_1",
+          "deviceSource": 253
+        },
+        {
+          "name": "band7_2",
+          "deviceSource": 254
+        }
+      ],
+      "designWidth": 194
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Nightscout watchface companion app"
+    }
+  },
+  "debug": true,
+  "defaultLanguage": "en-US"
+}
