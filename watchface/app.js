@@ -1,15 +1,10 @@
-const logger = DeviceRuntimeCore.HmLogger.getLogger('wf-nightscout')
-
 App({
-  globalData: {
-    logger: logger,
-    nightscout: { }
-  },
+  globalData: {},
   onCreate(options) {
-    logger.log('Nightscout watchface on create invoke')
+    console.log('app on create invoke')
   },
 
   onDestroy(options) {
-    logger.log('Nightscout watchface on destroy invoke')
+    console.log('app on destroy invoke')
   }
 })

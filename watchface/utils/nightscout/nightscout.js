@@ -1,1 +1,0 @@
-export const logger = Logger.getLogger("wf-nightscout");

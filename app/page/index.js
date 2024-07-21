@@ -1,447 +1,245 @@
-import {getGlobal} from "../shared/global";
-import {gettext as getText} from "i18n";
-import {
-    Colors,
-    Commands,
-    DATA_STALE_TIME_MS,
-    DATA_TIMER_UPDATE_INTERVAL_MS,
-    DATA_UPDATE_INTERVAL_MS,
-    PROGRESS_ANGLE_INC,
-    PROGRESS_UPDATE_INTERVAL_MS,
-    NIGHTSCOUT_UPDATE_INTERVAL_MS,
-} from "../utils/config/constants";
-import {
-    NIGHTSCOUT_ALARM_SETTINGS_DEFAULTS, WF_DIR,
-    WF_INFO_FILE,
-} from "../utils/config/global-constants";
-import {
-    BG_DELTA_TEXT,
-    BG_STALE_RECT,
-    BG_TIME_TEXT,
-    BG_TREND_IMAGE,
-    BG_VALUE_TEXT,
-    IMG_LOADING_PROGRESS,
-    MESSAGE_TEXT,
-    VERSION_TEXT,
-} from "../utils/config/styles";
+import AutoGUI, { multiplyHexColor } from "@silver-zepp/autogui";
+import { log } from "@zos/utils";
+import { readFileSync } from "@zos/fs";
+import VisLog from "@silver-zepp/vis-log";
+import { COLOR_GREEN, COLOR_WHITE } from "../libs/colors";
+import * as appService from "@zos/app-service";
+import { queryPermission, requestPermission } from "@zos/app";
+import { BasePage } from "@zeppos/zml/base-page";
+import BGFetcher from "../libs/bg-fetcher";
+import { setStatusBarVisible } from "@zos/ui";
 
-import {WatchdripData} from "../utils/nightscout/nightscout-data";
-import {getDataTypeConfig, img} from "../utils/helper";
-import {gotoSubpage} from "../shared/navigate";
-import {WatchdripConfig} from "../utils/nightscout/config";
-import {Path} from "../utils/path";
-import {NightscoutRetriever} from "../utils/nightscout/nightscout-retriever"
+const logger = log.getLogger("mini-app.page");
+const serviceFile = "app-service/index";
+const permissions = ["device:os.bg_service"];
 
-const logger = DeviceRuntimeCore.HmLogger.getLogger("nightscout_app");
+const vis = new VisLog("GlucoApp");
+const gui = new AutoGUI();
 
-const {messageBuilder} = getApp()._options.globalData;
-const {appId} = hmApp.packageInfo();
+class IndexPage {
+  pageGui = {};
+  textCurrentBg = "";
+  constructor(bgFetcher) {
+    // Step 1: Accept bgFetcher as an argument
+    this.bgFetcher = bgFetcher; // Store bgFetcher for use within IndexPage
+    this.updateBG = this.updateBG.bind(this);
+  }
+  init() {
+    setStatusBarVisible(false);
+    this.drawGUI();
+    this.readBGFromFile();
+    this.initVIS(); // logger should be init after the GUI was drawn
+    this.updateBG();
+  }
 
-/*
-typeof Watchdrip
-*/
-var nightscout = null;
+  initVIS() {
+    // set up logger: 1. logs from the to p; 2. limit the line count
+    vis.updateSettings({ log_from_top: true, line_count: 2 });
+  }
 
-const GoBackType = {NONE: 'none', GO_BACK: 'go_back', HIDE_PAGE: 'hide_page', HIDE: 'hide'};
-const PagesType = {
-    MAIN: 'main',
-};
-const FetchMode = {DISPLAY: 'display', HIDDEN: 'hidden'};
+  drawGUI() {
+    AutoGUI.SetPadding(10);
+    // create a group that will contain a big app name text surrounded with a rectangle
+    gui.startGroup();
+    gui.strokeRect(0x666666, { line_width: 8, radius: 10 });
+    this.pageGui.line1 = gui.text("Nightscout App", { text_size: 40 });
+    gui.endGroup();
 
-class Watchdrip {
-    constructor() {
+    // goto the second row
+    gui.newRow();
 
-        this.createWatchdripDir();
-        this.timeSensor = hmSensor.createSensor(hmSensor.id.TIME);
-        this.vibrate = hmSensor.createSensor(hmSensor.id.VIBRATE);
-        this.globalNS = getGlobal();
-        this.goBackType = GoBackType.NONE;
+    // this is your REUSABLE textfield
+    this.pageGui.line2 = gui.text("Refreshing...");
 
-        this.lastInfoUpdate = 0;
-        this.firstDisplay = true;
-        this.lastUpdateAttempt = null;
-        this.lastUpdateSucessful = false;
-        this.updatingData = false;
-        this.intervalTimer = null;
-        this.updateIntervals = DATA_UPDATE_INTERVAL_MS;
-        this.fetchMode = FetchMode.DISPLAY;
-        this.conf = new WatchdripConfig();
-        this.retriever = new NightscoutRetriever();
+    // goto the third row
+    gui.newRow();
 
-        this.infoFile = new Path("full", WF_INFO_FILE);
+    this.pageGui.line3 = gui.button("Refresh", this.updateBG, { text_size: 40, normal_color: 0x666666, radius: 10 });
+    // render the GUI
+    gui.render();
+  }
+
+  readBGFromFile() {
+    logger.log("Reading gluco from file...");
+
+    try {
+      const file_name = "glucose.txt";
+
+      const strBgData = readFileSync({
+        path: file_name,
+        options: {
+          encoding: "utf8",
+        },
+      });
+
+      const data = JSON.parse(strBgData);
+
+      this.textCurrentBg = data.bg.val || "No data available";
+      logger.log("done");
+      logger.log(`Gluco: ${this.textCurrentBg}`);
+      this.pageGui.line1.update({ text: this.textCurrentBg });
+      const currentTime = new Date().getTime(); // Get current time in milliseconds
+      const bgTime = data.bg.time; // BG time in UTC milliseconds
+      const minutesAgo = Math.floor((currentTime - bgTime) / 60000); // Calculate difference in minutes
+      this.pageGui.line2.update({ text: `${minutesAgo} mins ago` }); // Update line2 with the calculated time difference
+    } catch (error) {
+      logger.log("readBGFromFile failed", error);
+      //no need to warn on screen, probably just means it's never been run before
+      // vis.warn("readBGFromFile failed", error.message);
+    }
+  }
+
+  updateBG() {
+    logger.log("updateBG: Reading gluco...");
+    logger.log("fetchData: starting fetch");
+    this.pageGui.line2.update({ text: `Refreshing...` });
+    // Timeout promise function
+    function timeout(ms) {
+      return new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout: Unable to reach phone")), ms));
     }
 
-    start(data) {
-        logger.debug("start");
-        logger.debug(data);
-        let pageTitle = '';
-        this.goBackType = GoBackType.NONE;
-        switch (data.page) {
-            case PagesType.MAIN:
-                let pkg = hmApp.packageInfo();
-                pageTitle = pkg.name
-                this.main_page();
-                break;
+    this.bgFetcher
+      .fetchBG()
+      .then((response) => {
+        const data = response.result;
+        logger.log("receive data", data);
+        if (!data) {
+          logger.log("No response body:", JSON.stringify(response));
+          if (response.status === "ERROR") {
+            this.pageGui.line2.update({ text: `Error: ${response.message}` });
+          } else {
+            this.pageGui.line2.update({ text: `Error: No response received` });
+          }
+          return;
         }
-
-        if (pageTitle) {
-            hmUI.updateStatusBarTitle(pageTitle);
+        if (data.error) {
+          if (data.message.includes("Only absolute URLs are supported") || data.message.includes("unsupported URL")) {
+            this.pageGui.line2.update({ text: `No app settings found!` });
+            return;
+          }
+          this.pageGui.line2.update({ text: `Error: ${data.message}` });
+          return;
         }
-    }
-
-
-    main_page() {
-        hmSetting.setBrightScreen(60);
-        hmApp.setScreenKeep(true);
-        this.nightscoutData = new WatchdripData(this.timeSensor);
-        let pkg = hmApp.packageInfo();
-        this.versionTextWidget = hmUI.createWidget(hmUI.widget.TEXT, {...VERSION_TEXT, text: "v" + pkg.version});
-        this.messageTextWidget = hmUI.createWidget(hmUI.widget.TEXT, {...MESSAGE_TEXT, text: ""});
-        this.bgValTextWidget = hmUI.createWidget(hmUI.widget.TEXT, BG_VALUE_TEXT);
-        this.bgValTimeTextWidget = hmUI.createWidget(hmUI.widget.TEXT, BG_TIME_TEXT);
-        this.bgDeltaTextWidget = hmUI.createWidget(hmUI.widget.TEXT, BG_DELTA_TEXT);
-        this.bgTrendImageWidget = hmUI.createWidget(hmUI.widget.IMG, BG_TREND_IMAGE);
-        this.bgStaleLine = hmUI.createWidget(hmUI.widget.FILL_RECT, BG_STALE_RECT);
-        this.bgStaleLine.setProperty(hmUI.prop.VISIBLE, false);
-
-
-        if (this.conf.settings.disableUpdates) {
-            this.showMessage(getText("data_upd_disabled"));
+        // Assuming result.bg.val is the value you're interested in
+        this.textCurrentBg = data.bg.val || "No data available";
+        logger.log("done");
+        logger.log(`Gluco: ${this.textCurrentBg}`);
+        this.pageGui.line1.update({ text: this.textCurrentBg });
+        const currentTime = new Date().getTime(); // Get current time in milliseconds
+        const bgTime = data.bg.time; // BG time in UTC milliseconds
+        const minutesAgo = Math.floor((currentTime - bgTime) / 60000); // Calculate difference in minutes
+        this.pageGui.line2.update({ text: `${minutesAgo} mins ago` }); // Update line2 with the calculated time difference
+      })
+      .catch((errorResult) => {
+        logger.log("updateBG: fetch data failed", JSON.stringify(errorResult.message));
+        vis.warn("updateBG: fetch data failed", JSON.stringify(errorResult.message));
+        if (errorResult.message === "Only absolute URLs are supported") {
+          this.pageGui.line2.update({ text: `Nightscout settings not configured on Zepp Phone App` });
         } else {
-            if (this.readInfo()) {
-                this.updateWidgets();
-            }
-            this.fetchInfo();
-            this.startDataUpdates();
+          this.pageGui.line2.update({ text: `Error: ${errorResult.message}` });
         }
-    }
+      });
 
-    startDataUpdates() {
-        if (this.intervalTimer != null) return; //already started
-        logger.debug("startDataUpdates");
-        this.intervalTimer = this.globalNS.setInterval(() => {
-            this.checkUpdates();
-        }, DATA_TIMER_UPDATE_INTERVAL_MS);
-    }
-
-    stopDataUpdates() {
-        if (this.intervalTimer !== null) {
-            //logger.debug("stopDataUpdates");
-            this.globalNS.clearInterval(this.intervalTimer);
-            this.intervalTimer = null;
-        }
-    }
-
-    isTimeout(time, timeout_ms) {
-        if (!time) {
-            return false;
-        }
-        return this.timeSensor.utc - time > timeout_ms;
-    }
-
-    handleRareCases() {
-        logger.debug("rare case handler");
-        let fetch = false;
-        if (this.lastUpdateAttempt == null) {
-            logger.debug("initial fetch");
-            fetch = true;
-        } else if (this.isTimeout(this.lastUpdateAttempt, DATA_STALE_TIME_MS)) {
-            logger.debug("the side app not responding, force update again");
-            fetch = true;
-        }
-        if (fetch) {
-            this.fetchInfo();
-        }
-    }
-
-    checkUpdates() {
-        //logger.debug("checkUpdates");
-        this.updateTimesWidget();
-        if (this.updatingData) {
-            //logger.debug("updatingData, return");
-            return;
-        }
-        let lastInfoUpdate = this.readLastUpdate();
-        if (!lastInfoUpdate) {
-            this.handleRareCases();
+    // Race the fetchBG promise against the timeout
+    Promise.race([this.bgFetcher.fetchBG(), timeout(10000)])
+      .then((response) => {
+        const data = response.result;
+        logger.log("receive data", data);
+        // Handle success as before
+      })
+      .catch((error) => {
+        if (error.message === "Request timed out") {
+          // Handle timeout specific logic here
+          logger.log("fetchBG: request timed out");
+          this.pageGui.line2.update({ text: `Request timed out` });
         } else {
-            logger.debug("last update was: " + lastInfoUpdate);
-            if (this.lastUpdateSucessful) {
-                if (this.lastInfoUpdate !== lastInfoUpdate) {
-                    //update widgets because the data was modified outside the current scope
-                    logger.debug("update from remote");
-                    this.readInfo();
-                    this.lastInfoUpdate = lastInfoUpdate;
-                    this.updateWidgets();
-                    return;
-                }
-                if (this.isTimeout(lastInfoUpdate, this.updateIntervals)) {
-                    logger.debug("reached updateIntervals");
-                    this.fetchInfo();
-                    return;
-                }
-                const bgTimeOlder = this.isTimeout(this.nightscoutData.getBg().time, NIGHTSCOUT_UPDATE_INTERVAL_MS);
-                const statusNowOlder = this.isTimeout(this.nightscoutData.getStatus().now, NIGHTSCOUT_UPDATE_INTERVAL_MS);
-                if (bgTimeOlder || statusNowOlder) {
-                    if (!this.isTimeout(this.lastUpdateAttempt, DATA_STALE_TIME_MS)) {
-                        logger.debug("wait DATA_STALE_TIME");
-                        return;
-                    }
-                    logger.debug("data older than sensor update interval");
-                    this.fetchInfo();
-                    return;
-                }
-                //data not modified from outside scope so nothing to do
-                logger.debug("data not modified");
-            } else {
-                this.handleRareCases();
-            }
+          // Handle other errors as before
         }
-    }
+      });
+  }
 
-    fetch_page() {
-        logger.debug("fetch_page");
+  quit() {
+    // clean up
+  }
+}
+Page(
+  BasePage({
+    state: {},
+    build() {
+      // set up AutoGUI before creating the page
+      AutoGUI.SetColor(multiplyHexColor(COLOR_WHITE, 0.2));
+      AutoGUI.SetTextColor(COLOR_GREEN);
+      this.bgFetcher = new BGFetcher(this);
 
-        hmUI.setStatusBarVisible(false);
-        if (this.conf.settings.disableUpdates) {
-            this.handleGoBack();
-            return;
-        }
-        hmSetting.setBrightScreen(999);
-        this.progressWidget = hmUI.createWidget(hmUI.widget.IMG, IMG_LOADING_PROGRESS);
-        this.progressAngle = 0;
-        this.stopLoader();
-        this.fetchMode = FetchMode.HIDDEN;
-        this.fetchInfo();
-    }
+      this.index = new IndexPage(this.bgFetcher);
 
+      this.index.init();
 
-    fetchInfo() {
-        logger.log("fetchInfoApp");
-
-        let isDisplay = true;
-        this.resetLastUpdate();
-
-        this.retriever.fetchInfo(this.retrieve_complete.bind(this));
-    }
-
-    retrieve_complete(data) {
-        logger.log("index page data retrieved from retriever", data);
-
-        try {
-            if (data.error) {
-                if (data.message === "Only absolute URLs are supported") {
-                    this.showMessage("Configure App Settings on Phone (ZeppOS App)");
-                    return
-                }
-                logger.debug("Error");
-                logger.debug(data);
-                this.showMessage("Error: " + data.message);
-                return;
-            }
-
-            hmFS.SysProSetChars('fs_last_info', JSON.stringify(data))
-
-            let dataInfo = data;
-            this.lastInfoUpdate = this.saveInfo(data);
-            
-            data = null;
-            this.nightscoutData.setData(dataInfo);
-            this.nightscoutData.updateTimeDiff();
-            dataInfo = null;
-
-            this.updateWidgets();
-        } catch (e) {
-            logger.debug("error:" + e);
-        }  
-
-        this.updatingData = false;
-    }
-
-    startLoader() {
-        this.progressWidget.setProperty(hmUI.prop.VISIBLE, true);
-        this.progressWidget.setProperty(hmUI.prop.MORE, {angle: this.progressAngle});
-        this.progressTimer = this.globalNS.setInterval(() => {
-            this.updateLoader();
-        }, PROGRESS_UPDATE_INTERVAL_MS);
-    }
-
-    updateLoader() {
-        this.progressAngle = this.progressAngle + PROGRESS_ANGLE_INC;
-        if (this.progressAngle >= 360) this.progressAngle = 0;
-        this.progressWidget.setProperty(hmUI.prop.MORE, {angle: this.progressAngle});
-    }
-
-    stopLoader() {
-        if (this.progressTimer !== null) {
-            this.globalNS.clearInterval(this.progressTimer);
-            this.progressTimer = null;
-        }
-        this.progressWidget.setProperty(hmUI.prop.VISIBLE, false);
-    }
-
-    updateWidgets() {
-        logger.debug('updateWidgets');
-        this.setMessageVisibility(false);
-        this.setBgElementsVisibility(true);
-        this.updateValuesWidget()
-        this.updateTimesWidget()
-    }
-
-    updateValuesWidget() {
-        let bgValColor = Colors.white;
-        let bgObj = this.nightscoutData.getBg();
-        if (bgObj.isHigh) {
-            bgValColor = Colors.bgHigh;
-        } else if (bgObj.isLow) {
-            bgValColor = Colors.bgLow;
-        }
-
-        this.bgValTextWidget.setProperty(hmUI.prop.MORE, {
-            text: bgObj.getBGVal(),
-            color: bgValColor,
-        });
-
-        this.bgDeltaTextWidget.setProperty(hmUI.prop.MORE, {
-            text: bgObj.delta + " " + this.nightscoutData.getStatus().getUnitText()
-        });
-
-        //logger.debug(bgObj.getArrowResource());
-        this.bgTrendImageWidget.setProperty(hmUI.prop.SRC, bgObj.getArrowResource());
-        this.bgStaleLine.setProperty(hmUI.prop.VISIBLE, this.nightscoutData.isBgStale());
-    }
-
-    updateTimesWidget() {
-        let bgObj = this.nightscoutData.getBg();
-        if (!bgObj.time) {
-            return;
-        }
-        const currentTime = Date.now(); // Current time in milliseconds
-        const differenceInMillis = currentTime - bgObj.time; // Difference in milliseconds
-        // Convert milliseconds to minutes
-        let bgTimeInMinutes = Math.round(differenceInMillis / 60000);
-        this.bgValTimeTextWidget.setProperty(hmUI.prop.MORE, {
-            text: bgTimeInMinutes + 'min',
-        });
-    }
-
-    showMessage(text) {
-        this.setBgElementsVisibility(false);
-        //use for autowrap
-        //
-        // let lay = hmUI.getTextLayout(text, {
-        //     text_size: MESSAGE_TEXT_SIZE,
-        //     text_width: MESSAGE_TEXT_WIDTH,
-        //     wrapped: 1
-        // });
-        // logger.debug(lay);
-        this.messageTextWidget.setProperty(hmUI.prop.MORE, {text: text});
-        this.setMessageVisibility(true);
-    }
-
-    setBgElementsVisibility(visibility) {
-        this.bgValTextWidget.setProperty(hmUI.prop.VISIBLE, visibility);
-        this.bgValTimeTextWidget.setProperty(hmUI.prop.VISIBLE, visibility);
-        this.bgTrendImageWidget.setProperty(hmUI.prop.VISIBLE, visibility);
-        this.bgStaleLine.setProperty(hmUI.prop.VISIBLE, visibility);
-        this.bgDeltaTextWidget.setProperty(hmUI.prop.VISIBLE, visibility);
-    }
-
-    setMessageVisibility(visibility) {
-        this.messageTextWidget.setProperty(hmUI.prop.VISIBLE, visibility);
-    }
-
-    readInfo() {
-        let data = this.infoFile.fetchJSON();
-        if (data) {
-                logger.debug("data was read");
-                this.nightscoutData.setData(data);
-                this.nightscoutData.timeDiff = 0;
-            data = null;
-            return true
-        }
-        return false;
-    }
-
-    readLastUpdate() {
-        logger.debug("readLastUpdate");
-        this.conf.read();
-        this.lastUpdateAttempt = this.conf.infoLastUpdAttempt;
-        this.lastUpdateSucessful = this.conf.infoLastUpdSucess;
-
-        return this.conf.infoLastUpd;
-    }
-
-    resetLastUpdate() {
-        logger.debug("resetLastUpdate");
-        this.lastUpdateAttempt = this.timeSensor.utc;
-        this.lastUpdateSucessful = false;
-        this.conf.infoLastUpdAttempt = this.lastUpdateAttempt
-        this.conf.infoLastUpdSucess = this.lastUpdateSucessful;
-    }
-
-    createWatchdripDir() {
-        let dir = new Path("full", WF_DIR);
-        if (!dir.exists()) {
-            dir.mkdir();
-        }
-    }
-
-    saveInfo(info) {
-        logger.debug("saveInfo");
-        this.infoFile.overrideWithText(info);
-        this.lastUpdateSucessful = true;
-        let time = this.timeSensor.utc;
-        this.conf.infoLastUpd = time
-        this.conf.infoLastUpdSucess = this.lastUpdateSucessful;
-        return time;
-    }
-
-    handleGoBack() {
-        hmApp.goBack();
-    }
-
-
-    vibrateNow() {
-        this.vibrate.stop();
-        this.vibrate.scene = 24;
-        this.vibrate.start();
-    }
+      const vm = this;
+      let services = appService.getAllAppServices();
+      vm.state.running = services.includes(serviceFile);
+      logger.log("running", vm.state.running);
+      if (!vm.state.running) {
+        permissionRequest(vm);
+      }
+    },
 
     onDestroy() {
-        //this.disableCurrentAlarm(); //do not stop alarm on destroy
-        this.conf.save();
-        this.stopDataUpdates();
-        this.vibrate.stop();
-        hmSetting.setBrightScreenCancel();
-    }
+      this.index.quit();
+    },
+  })
+);
+
+//********************************//
+//**          HELPERS           **//
+//********************************//
+function str2ab(str) {
+  var buf = new ArrayBuffer(str.length);
+  var buf_view = new Uint8Array(buf);
+  for (var i = 0, strLen = str.length; i < strLen; i++) {
+    buf_view[i] = str.charCodeAt(i);
+  }
+  return buf;
 }
 
-Page({
-    onInit(p) {
-        try {
-            console.log("page onInit");
-            let data = {page: PagesType.MAIN};
-            try {
-                if (!(!p || p === 'undefined')) {
-                    data = JSON.parse(p);
-                }
-            } catch (e) {
-                data = {page: p}
-            }
+function permissionRequest(vm) {
+  const [result2] = queryPermission({
+    permissions,
+  });
 
-            nightscout = new Watchdrip()
-            nightscout.start(data);
-        } catch (e) {
-            logger.debug('LifeCycle Error ' + e)
-            e && e.stack && e.stack.split(/\n/).forEach((i) => logger.debug('error stack:' + i))
+  logger.log("permissionRequest", result2);
+  if (result2 === 0) {
+    requestPermission({
+      permissions,
+      callback([result2]) {
+        logger.log("permissionRequestAfter", result2);
+        if (result2 === 2) {
+          startTimeService(vm);
         }
+      },
+    });
+  } else if (result2 === 2) {
+    startTimeService(vm);
+  }
+}
+
+function startTimeService(vm) {
+  logger.log(`=== start service: ${serviceFile} ===`);
+  const result = appService.start({
+    url: serviceFile,
+    param: `service=${serviceFile}&action=start`,
+    complete_func: (info) => {
+      logger.log(`startService result: ` + JSON.stringify(info));
+      // refresh for button status
+
+      if (info.result) {
+        vm.state.running = true;
+        logger.log("running", info.result);
+      }
     },
-    build() {
-        logger.debug("index.js page build invoked");
-    },
-    onDestroy() {
-        logger.debug("index.js page onDestroy invoked");
-        nightscout.onDestroy();
-    },
-});
+  });
+
+  if (result) {
+    logger.log("startService result: ", result);
+  }
+}

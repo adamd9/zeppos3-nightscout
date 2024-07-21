@@ -1,8 +1,6 @@
-import { MessageBuilder } from "../shared/message";
-import { Commands, SERVER_INFO_URL } from "../utils/config/constants";
+import { BaseSideService } from "@zeppos/zml/base-side";
 
-// const logger = DeviceRuntimeCore.HmLogger.getLogger("nightscout_side");
-const messageBuilder = new MessageBuilder();
+NS_API_ENDPOINT = "api/v2/properties?token=";
 
 const DEFAULT_SETTINGS = {
   urlConfig: "",
@@ -34,114 +32,97 @@ function getDisableUpdates() {
     : DEFAULT_SETTINGS.disableUpdates;
 }
 
-const fetchInfo = async (ctx, url) => {
-    console.log("App side-service - running fetchInfo")
-  let resp = {};
-  if (getDisableUpdates() === true) {
-    resp = { error: true, message: "Updates disabled in Phone ZeppOS App" };
-    const jsonDisabledResp = { data: { result: resp } };
-    if (ctx !== false) {
-      ctx.response(jsonDisabledResp);
-    } else {
-      return jsonDisabledResp;
-    }
-  }
-  console.log("App-side: Fetching data");
-  await fetch({
-    url: url,
-    method: "GET",
-  })
-    .then((response) => {
-      if (!response.body) throw Error("No Data");
+AppSideService(
+  BaseSideService({
+    onInit() {
+      console.log("AppSideService onInit");
+    },
 
-      return response.body;
-    })
-    .then((data) => {
-      try {
-        console.log("log", data);
-        const transformedInfo = {
-          bg: {
-            val: data.bgnow.sgvs[0].scaled,
-            delta: data.delta.scaled,
-            trend: data.bgnow.sgvs[0].direction,
-            isHigh: false,
-            isLow: false,
-            time: data.bgnow.mills,
-            isStale: data.delta.elapsedMins > 10,
-          },
-          status: {
-            now: (new Date(data.upbat.min.timestamp)).getTime(),
-            isMgdl: false,
-            bat: new Date().getMinutes(), //data.upbat.level
-          },
-          treatment: {
-            insulin: "",
-            carbs: "",
-            time: "",
-            predictIOB: "",
-            predictBWP: "",
-          },
-          pump: {
-            reservoir: data.pump.data.reservoir.display,
-            iob: data.pump.loop.iob.iob,
-            bat: 100,
-          },
-          settings: {
-            updateInterval: getUpdateInterval(),
-          },
-        };
-
-        resp = transformedInfo;
-      } catch (error) {
-        throw Error(error.message);
+    onRequest(req, res) {
+      console.log("=====>,", req.method);
+      if (req.method === "GET_SETTINGS") {
+        res(null, {
+          urlConfig: JSON.parse(settings.settingsStorage.getItem("urlConfig")),
+          accessToken: JSON.parse(settings.settingsStorage.getItem("accessToken")),
+          updateInterval: settings.settingsStorage.getItem("updateInterval"),
+          disableUpdates: settings.settingsStorage.getItem("disableUpdates"),
+        });
       }
-    })
-    .catch(function (error) {
-      resp = { error: true, message: error.message };
-    })
-    .finally(() => {
-      const jsonResp = { data: { result: resp } };
-      if (ctx !== false) {
-        ctx.response(jsonResp);
-      } else {
-        return jsonResp;
+      if (req.method === "GET_BG") {
+        let url = getUrlConfig();
+
+        if (!url.endsWith("/")) {
+          url += "/";
+        }
+
+        let token = getAccessToken();
+        this.fetchInfo(url + NS_API_ENDPOINT + token).then((response) => {
+          console.log("App side-service - response", response);
+          res(null, response);
+        });
       }
-    });
-};
+    },
 
-AppSideService({
-  onInit() {
-    messageBuilder.listen(() => {});
-    messageBuilder.on("request", (ctx) => {
-      const jsonRpc = messageBuilder.buf2Json(ctx.request.payload);
-      const { params = {} } = jsonRpc;
-      let url = getUrlConfig();
-
-      if (!url.endsWith("/")) {
-        url += "/";
-      }
-
-      let token = getAccessToken();
-
-      switch (jsonRpc.method) {
-        case Commands.getInfo:
-          return fetchInfo(ctx, url + SERVER_INFO_URL + token);
-        case "GET_SETTINGS":
-          ctx.response({
-            data: {
-              result: {
-                urlConfig: getUrlConfig(),
-                updateInterval: getUpdateInterval(),
-                disableUpdates: getDisableUpdates(),
-              },
-            },
+    fetchInfo(url) {
+      return new Promise((resolve, reject) => {
+        console.log("App side-service - running fetchInfo");
+        let resp = {};
+        if (getDisableUpdates() === true) {
+          resp = { error: true, message: "Updates disabled in Phone ZeppOS App" };
+          resolve({ data: { result: resp } });
+          return;
+        }
+        console.log("App-side: Fetching data");
+        fetch({
+          url: url,
+          method: "GET",
+        })
+          .then((response) => {
+            if (!response.body) throw new Error("No Data");
+            return response.body;
+          })
+          .then((data) => {
+            try {
+              console.log("log", data);
+              const transformedInfo = {
+                bg: {
+                  val:
+                    typeof data.bgnow.sgvs[0].scaled === "number"
+                      ? data.bgnow.sgvs[0].scaled.toString()
+                      : data.bgnow.sgvs[0].scaled,
+                  delta: data.delta.scaled,
+                  trend: data.bgnow.sgvs[0].direction,
+                  isHigh: false,
+                  isLow: false,
+                  time: data.bgnow.mills,
+                  isStale: data.delta.elapsedMins > 10,
+                },
+                status: {
+                  isMgdl:
+                    data.bgnow.sgvs[0].scaled && data.bgnow.sgvs[0].mgdl
+                      ? data.bgnow.sgvs[0].scaled === data.bgnow.sgvs[0].mgdl
+                      : null,
+                },
+                settings: {
+                  updateInterval: getUpdateInterval(),
+                },
+              };
+              resp = transformedInfo;
+              resolve({ data: { result: resp } });
+            } catch (error) {
+              reject(error);
+            }
+          })
+          .catch((error) => {
+            console.log("ERROR", error);
+            resp = { error: true, message: error.message };
+            resolve({ data: { result: resp } }); // Use resolve to send error object in case of failure
           });
-        default:
-          break;
-      }
-    });
-  },
+      });
+    },
 
-  onRun() {},
-  onDestroy() {},
-});
+    onRun() {},
+
+    onDestroy() {},
+  })
+);

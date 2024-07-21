@@ -1,16 +1,16 @@
 {
   "configVersion": "v2",
   "app": {
-    "appId": 1051097,
+    "appId": 1058364,
     "appName": "Nightscout Watchface",
     "appType": "watchface",
     "version": {
-      "code": 2,
-      "name": "1.0.2"
+      "code": 1,
+      "name": "1.0"
     },
     "vender": "AdamD",
-    "description": "Nightscout watchface",
-    "icon": "images/preview.png"
+    "description": "Nightscout Watchface",
+    "icon": "icon.png"
   },
   "permissions": [],
   "runtime": {
@@ -21,37 +21,58 @@
     }
   },
   "targets": {
-    "band7": {
+    "320x380-amazfit-bip-5-unity": {
+      "module": {     
+        "watchface": {
+          "path": "watchface/index",
+          "main": 1,
+          "editable": 0,
+          "lockscreen": 0
+        }
+      },
+      "platforms": [
+        {
+          "name": "KunlunW",
+          "deviceSource": 8782081
+        },
+        {
+          "name": "KunlunWA",
+          "deviceSource": 8782088
+        }
+      ],
+      "designWidth": 320
+    },
+    "480x480-amazfit-balance": {
       "module": {
         "watchface": {
-          "path": "watchface/entry/band7/index",
+          "path": "watchface/index",
           "main": 1,
-          "editable": 1,
+          "editable": 0,
           "lockscreen": 1
         }
       },
       "platforms": [
         {
-          "name": "band71",
-          "deviceSource": 252
+          "name": "Monaco",
+          "deviceSource": 8519936
         },
         {
-          "name": "band72",
-          "deviceSource": 253
+          "name": "MonacoWN",
+          "deviceSource": 8519937
         },
         {
-          "name": "band73",
-          "deviceSource": 254
-        }
+          "name": "MonacoW",
+          "deviceSource": 8519939
+        }      
       ],
-      "designWidth": 194
-  }
+      "designWidth": 480
+    }
   },
   "i18n": {
     "en-US": {
-      "appName": "Nightscout"
+      "appName": "Nightscout Watchface"
     }
   },
   "defaultLanguage": "en-US",
-  "debug": true
+  "debug": false
 }

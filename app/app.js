@@ -1,20 +1,15 @@
-import "./shared/device-polyfill";
-import { MessageBuilder } from "./shared/message";
-import { NIGHTSCOUT_APP_ID } from "./utils/config/global-constants";
+import { BaseApp } from "@zeppos/zml/base-app";
 
-const appId = NIGHTSCOUT_APP_ID;
-const messageBuilder = new MessageBuilder({ appId });
-App({
-  globalData: {
-    messageBuilder: messageBuilder,
-  },
-  onCreate(options) {
-    console.log("Nightscout app on create invoke");
-    messageBuilder.connect();
-  },
+App(
+  BaseApp({
+    globalData: {
+    },
+    onCreate() {
+      console.log("app on create invoke");
+    },
 
-  onDestroy(options) {
-    console.log("Nightscout app on destroy invoke");
-    messageBuilder.disConnect();
-  },
-});
+    onDestroy() {
+      console.log("app on destroy invoke");
+    },
+  })
+);
