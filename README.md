@@ -22,6 +22,33 @@ This project is inspired by and borrows significantly from existing xDrip ZeppOS
 
 Unlike the referenced projects that rely on a local xDrip app, this watchface leverages the Nightscout backend, making your data accessible directly from your Nightscout server without the need for a local intermediary. The focus is on maintaining a lean and straightforward project, prioritizing ease of use and essential functionality.
 
+## Project Structure
+
+This repository consists of two main components:
+
+### 1. Watchface (`/watchface`)
+- Custom watchface for Amazfit Band 7
+- Displays blood glucose data directly on the watch face
+- Built using ZeppOS framework
+- Key files:
+  - `app.json`: Watchface configuration and metadata
+  - `index.js`: Main watchface logic
+  - `page/index.js`: Watchface UI implementation
+
+### 2. Companion App (`/app`)
+- ZeppOS mini app that runs alongside the watchface
+- Handles communication with Nightscout server
+- Manages settings and data synchronization
+- Key files:
+  - `app.json`: App configuration and metadata
+  - `app-side/index.js`: Main app logic for phone-side operations
+  - `page/index.js`: App UI implementation
+
+### Additional Resources
+- `ns_icon*.png`: Various Nightscout icons used in the app
+- `icon_240x240.png`: App icon
+- `screenshot_wf.png`: Watchface screenshot
+
 ## App Settings
 
 Within the Zepp app, you'll find the settings page for this watchface. Here, you can configure the following:
@@ -32,10 +59,28 @@ Within the Zepp app, you'll find the settings page for this watchface. Here, you
 
 ## Getting Started
 
-To run this project on your Amazfit Band 7, you'll need to follow the development setup instructions provided by ZeppOS:
+### Development Prerequisites
+1. Install Node.js and npm
+2. Install Zeus CLI tool: `npm install -g @zeppos/zeus-cli`
+3. Configure your development environment following the [ZeppOS documentation](https://docs.zepp.com/docs/)
 
-1. Visit the [Zepp Developer Documentation](https://docs.zepp.com/docs/1.0/intro/) and set up your development environment according to their guidelines.
-2. Once set up, navigate to each project folder (`watchface` and `nightscout_companion`) and run `zeus dev` to start the development server.
+### Development Setup
+1. Clone this repository
+2. Install dependencies:
+   ```bash
+   # In both /watchface and /app directories
+   zeus install
+   ```
+3. Start development servers:
+   ```bash
+   # For watchface
+   cd watchface
+   zeus dev
+
+   # For companion app
+   cd app
+   zeus dev
+   ```
 
 ## Installation
 
@@ -58,4 +103,4 @@ Your contributions, bug reports, and suggestions are welcome! This project is op
 
 ## Acknowledgements
 
-A heartfelt thank you to the Nightscout community and the developers of the referenced 
+A heartfelt thank you to the Nightscout community and the developers of the referenced repositories for their foundational work.

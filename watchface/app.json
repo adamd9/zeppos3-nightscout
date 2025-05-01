@@ -66,6 +66,31 @@
         }      
       ],
       "designWidth": 480
+    },
+    "bip6": {
+      "module": {
+        "watchface": {
+          "path": "watchface/index",
+          "main": 1,
+          "editable": 0,
+          "lockscreen": 0
+        }
+      },
+      "platforms": [
+        {
+          "name": "KunlunW",
+          "deviceSource": 9765120
+        },
+        {
+          "name": "KunlunWA",
+          "deviceSource": 9765121
+        },
+        {
+          "name": "KunlunWB",
+          "deviceSource": 10158337
+        }
+      ],
+      "designWidth": 390
     }
   },
   "i18n": {
