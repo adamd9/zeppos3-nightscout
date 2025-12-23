@@ -23,7 +23,7 @@
     }
   },
   "targets": {
-    "gt": {
+    "default": {
       "module": {
         "page": {
           "pages": [
@@ -41,10 +41,6 @@
         } 
       },
       "platforms": [
-        {
-          "st": "r",
-          "dw": 480
-        },
         {
           "st": "s",
           "dw": 390

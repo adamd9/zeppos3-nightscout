@@ -1,9 +1,11 @@
-import VisLog from "../libs/vis-log";
 import { COMPANION_APP_ID, BG_DATA_FILE } from "../libs/constants";
-
-const vis = new VisLog("watchface");
-const logger = DeviceRuntimeCore.HmLogger.getLogger("wf-nightscout-z3");
-const time = hmSensor.createSensor(hmSensor.id.TIME);
+import * as hmUI from "@zos/ui";
+import { log } from "@zos/utils";
+import { Time } from "@zos/sensor";
+import { launchApp } from "@zos/router";
+import { openSync, readSync, closeSync, O_RDONLY } from "@zos/fs";
+const logger = log.getLogger("wf-nightscout-z3");
+const time = new Time();
 const arrowChars = {
   DoubleDown: "↓↓",
   DoubleUp: "↑↑",
@@ -130,7 +132,7 @@ WatchFace({
       show_level: hmUI.show_level.ONLY_NORMAL,
       click_func: () => {
         console.log("Open app");
-        hmApp.startApp({ appid: COMPANION_APP_ID, url: "page/index" });
+        launchApp({ appId: COMPANION_APP_ID, url: "page/index" });
       },
     });
 
@@ -139,14 +141,18 @@ WatchFace({
 
       let str_result = "";
       try {
-        const fh = hmFS.open(BG_DATA_FILE, hmFS.O_RDONLY, {
-          appid: COMPANION_APP_ID,
+        const fh = openSync({
+          path: BG_DATA_FILE,
+          flag: O_RDONLY,
+          options: {
+            appId: COMPANION_APP_ID,
+          },
         });
 
         const len = 1024;
-        let array_buffer = new ArrayBuffer(len);
-        hmFS.read(fh, array_buffer, 0, len);
-        hmFS.close(fh);
+        const array_buffer = new ArrayBuffer(len);
+        readSync({ fd: fh, buffer: array_buffer });
+        closeSync({ fd: fh });
 
         str_result = ab2str(array_buffer);
       } catch (error) {
@@ -194,13 +200,15 @@ WatchFace({
         console.log("ui resume");
 
         console.log("updating existing UI elements");
-        const timeText = `${time.hour % 12 || 12}:${time.minute.toString().padStart(2, "0")}`;
+        const hours = time.getHours();
+        const minutes = time.getMinutes();
+        const timeText = `${hours % 12 || 12}:${minutes.toString().padStart(2, "0")}`;
         wfTitleText.setProperty(hmUI.prop.MORE, {
           text: timeText,
         });
         aodTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
         //update wfDate
-        const dateText = `${time.day} ${monthNumToString(time.month)}`;
+        const dateText = `${time.getDate()} ${monthNumToString(time.getMonth())}`;
         wfDateText.setProperty(hmUI.prop.MORE, { text: dateText });
         aodDateText.setProperty(hmUI.prop.MORE, { text: dateText });
 
