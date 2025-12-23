@@ -165,7 +165,7 @@ AppSettingsPage({
           }
         },"ZeppOS Nightscout app by Adam Dinneen 2024"),
         Link({
-          source: "https://github.com/adamd9/zeppos-nightscout",
+          source: "https://github.com/adamd9/zeppos3-nightscout",
         },"GitHub Project"),
         Text({
           paragraph: false,
@@ -173,7 +173,7 @@ AppSettingsPage({
           }
         }," | "),
         Link({
-          source: "mailto:adam@greatmachineinthesky.com?subject=Nightscout%20Menu%20Bar%20-%20Report%20an%20Issue&body=Nightscout%20URL:%20+%20nightscoutUrl%0APlease%20provide%20a%20description%20of%20the%20issue.%20Leaving%20your%20Nightscout%20URL%20included%20means%20that%20the%20developer%20can%20replicate%20the%20issue%20and%20fix%20it.%0A%0ADescription%20of%20issue:%20",
+          source: "mailto:adam@greatmachineinthesky.com?subject=Nightscout%20ZeppOS%20Watchface%20-%20Report%20an%20Issue&body=Nightscout%20URL:%20+%20nightscoutUrl%0APlease%20provide%20a%20description%20of%20the%20issue.%20Leaving%20your%20Nightscout%20URL%20included%20means%20that%20the%20developer%20can%20replicate%20the%20issue%20and%20fix%20it.%0A%0ADescription%20of%20issue:%20",
         },"Report an issue"),
       ]
     );
