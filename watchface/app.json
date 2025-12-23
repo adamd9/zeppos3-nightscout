@@ -27,7 +27,11 @@
           "path": "watchface/index",
           "main": 1,
           "editable": 0,
-          "lockscreen": 0
+          "lockscreen": 1,
+          "aod": {
+            "path": "watchface/index",
+            "main": 1
+          }
         }
       },
       "platforms": [
@@ -48,7 +52,11 @@
           "path": "watchface/index",
           "main": 1,
           "editable": 0,
-          "lockscreen": 1
+          "lockscreen": 1,
+          "aod": {
+            "path": "watchface/index",
+            "main": 1
+          }
         }
       },
       "platforms": [
@@ -73,7 +81,11 @@
           "path": "watchface/index",
           "main": 1,
           "editable": 0,
-          "lockscreen": 0
+          "lockscreen": 1,
+          "aod": {
+            "path": "watchface/index",
+            "main": 1
+          }
         }
       },
       "platforms": [

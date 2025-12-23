@@ -22,8 +22,10 @@ WatchFace({
 
   init() {
     let wfTitleText, wfDateText, wfDateBackground, bgWidget, bgWidgetButton;
+    let aodTitleText, aodDateText, aodDateBackground, aodBgText;
     // Set padding (if applicable, otherwise you can set margins individually for elements)
     const padding = 20;
+    const aodColor = 0x777777;
 
     // Create the big app name text
     wfTitleText = hmUI.createWidget(hmUI.widget.TEXT, {
@@ -34,6 +36,18 @@ WatchFace({
       text: "10:09",
       text_size: 100,
       color: 0x07d570,
+      show_level: hmUI.show_level.ONLY_NORMAL,
+    });
+
+    aodTitleText = hmUI.createWidget(hmUI.widget.TEXT, {
+      x: padding,
+      y: padding,
+      w: 300,
+      h: 120,
+      text: "10:09",
+      text_size: 100,
+      color: aodColor,
+      show_level: hmUI.show_level.ONAL_AOD,
     });
 
     //create date text significantly smaller that titletext
@@ -45,6 +59,18 @@ WatchFace({
       text: "Monday 5",
       text_size: 30,
       color: 0x07d570,
+      show_level: hmUI.show_level.ONLY_NORMAL,
+    });
+
+    aodDateText = hmUI.createWidget(hmUI.widget.TEXT, {
+      x: padding,
+      y: padding + 130,
+      w: 200,
+      h: 40,
+      text: "Monday 5",
+      text_size: 30,
+      color: aodColor,
+      show_level: hmUI.show_level.ONAL_AOD,
     });
 
     // Create the rectangle background
@@ -55,6 +81,17 @@ WatchFace({
       h: 100,
       color: 0x07d570,
       radius: 10,
+      show_level: hmUI.show_level.ONLY_NORMAL,
+    });
+
+    aodDateBackground = hmUI.createWidget(hmUI.widget.STROKE_RECT, {
+      x: padding,
+      y: 220,
+      w: 200,
+      h: 100,
+      color: aodColor,
+      radius: 10,
+      show_level: hmUI.show_level.ONAL_AOD,
     });
 
     //create text inside the dimension of the wfDateBackground
@@ -66,6 +103,18 @@ WatchFace({
       text: "5.4 ↑",
       text_size: 50,
       color: 0xffffff,
+      show_level: hmUI.show_level.ONLY_NORMAL,
+    });
+
+    aodBgText = hmUI.createWidget(hmUI.widget.TEXT, {
+      x: padding + 20,
+      y: 230,
+      w: 260,
+      h: 80,
+      text: "--",
+      text_size: 50,
+      color: aodColor,
+      show_level: hmUI.show_level.ONAL_AOD,
     });
 
     //create button on top of wfDateBackground (same dimensions) that opens openApp
@@ -78,6 +127,7 @@ WatchFace({
       normal_src: "280x230-00000000.png",
       press_src: "280x230-0000007f.png",
       radius: 10,
+      show_level: hmUI.show_level.ONLY_NORMAL,
       click_func: () => {
         console.log("Open app");
         hmApp.startApp({ appid: COMPANION_APP_ID, url: "page/index" });
@@ -123,12 +173,15 @@ WatchFace({
         const bgTrend = trendStringToAscii(bgData.bg.trend);
         const bgTimeStamp = bgData.bg.time;
         bgWidget.setProperty(hmUI.prop.MORE, { text: `${bgVal} ${bgTrend}` });
+        aodBgText.setProperty(hmUI.prop.MORE, { text: `${bgVal} ${bgTrend}` });
         const currentTime = new Date().getTime(); // Get current time in milliseconds
         if (currentTime - bgTimeStamp > 360000) {
           // Change the colour to orange
           bgWidget.setProperty(hmUI.prop.MORE, { color: 0xffa500 });
+          aodBgText.setProperty(hmUI.prop.MORE, { color: aodColor });
         } else {
           bgWidget.setProperty(hmUI.prop.MORE, { color: 0xffffff });
+          aodBgText.setProperty(hmUI.prop.MORE, { color: aodColor });
         }
       } catch (error) {
         logger.log("Error: ", error.message);
@@ -141,13 +194,15 @@ WatchFace({
         console.log("ui resume");
 
         console.log("updating existing UI elements");
+        const timeText = `${time.hour % 12 || 12}:${time.minute.toString().padStart(2, "0")}`;
         wfTitleText.setProperty(hmUI.prop.MORE, {
-          text: `${time.hour % 12 || 12}:${time.minute.toString().padStart(2, "0")}`,
+          text: timeText,
         });
+        aodTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
         //update wfDate
-        wfDateText.setProperty(hmUI.prop.MORE, {
-          text: `${time.day} ${monthNumToString(time.month)}`,
-        });
+        const dateText = `${time.day} ${monthNumToString(time.month)}`;
+        wfDateText.setProperty(hmUI.prop.MORE, { text: dateText });
+        aodDateText.setProperty(hmUI.prop.MORE, { text: dateText });
 
         read();
       },
