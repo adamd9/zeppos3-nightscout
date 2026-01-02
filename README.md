@@ -4,9 +4,14 @@ This repository contains a ZeppOS watchface and companion mini app that fetch bl
 
 ## Supported devices
 
-- Amazfit Bip 5
-- Amazfit Bip 6
-- Amazfit Balance
+- This is a ZeppOS 3 “universal” watchface intended for square-screen Amazfit watches.
+- Tested:
+  - Amazfit Bip 5 Unity
+  - Amazfit Bip 6
+  - Amazfit Cheetah (Square)
+  - Amazfit Active
+  - Amazfit GTS 4
+- It should also work on other square-screen Amazfit watches that support ZeppOS 3.
 
 Device targets are defined in `watchface/app.json` and `app/app.json`.
 
@@ -122,10 +127,6 @@ Note: the watchface reads BG data from a file owned by the companion app, so you
 
 Please note that this project is still in the experimental phase and may contain bugs. It has not undergone rigorous testing, and its reliability in different scenarios has not been fully validated. Use it at your own risk and discretion.
 
-## Future Plans
-
-- **Further Simplification**: Continued efforts to streamline the codebase, removing unnecessary elements to enhance performance and reliability.
-- **Device Support Expansion**: Potential support for additional devices may be considered, contingent upon access to the physical devices for testing and development.
 
 ## Contribution
 
