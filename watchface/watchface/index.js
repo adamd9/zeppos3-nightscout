@@ -195,23 +195,31 @@ WatchFace({
       }
     }
 
+    function updateTime() {
+      console.log("updating existing UI elements");
+      const hours = time.getHours();
+      const minutes = time.getMinutes();
+      const timeText = `${hours % 12 || 12}:${minutes.toString().padStart(2, "0")}`;
+      wfTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
+      aodTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
+      //update wfDate
+      const dateText = `${time.getDate()} ${monthNumToString(time.getMonth())}`;
+      wfDateText.setProperty(hmUI.prop.MORE, { text: dateText });
+      aodDateText.setProperty(hmUI.prop.MORE, { text: dateText });
+    }
+
+    updateTime();
+    read();
+
+    time.onPerMinute(() => {
+      updateTime();
+      read();
+    });
+
     const widgetDelegate = hmUI.createWidget(hmUI.widget.WIDGET_DELEGATE, {
       resume_call: function () {
         console.log("ui resume");
-
-        console.log("updating existing UI elements");
-        const hours = time.getHours();
-        const minutes = time.getMinutes();
-        const timeText = `${hours % 12 || 12}:${minutes.toString().padStart(2, "0")}`;
-        wfTitleText.setProperty(hmUI.prop.MORE, {
-          text: timeText,
-        });
-        aodTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
-        //update wfDate
-        const dateText = `${time.getDate()} ${monthNumToString(time.getMonth())}`;
-        wfDateText.setProperty(hmUI.prop.MORE, { text: dateText });
-        aodDateText.setProperty(hmUI.prop.MORE, { text: dateText });
-
+        updateTime();
         read();
       },
       pause_call: function () {

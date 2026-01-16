@@ -26,6 +26,10 @@ Device targets are defined in `watchface/app.json` and `app/app.json`.
 - **Update Timestamp**: Displays the time elapsed since the last BG data was fetched, ensuring you're aware of the data's freshness.
 - **Simplified Interface**: Focuses on the essentials - your BG level, trend, and update time - for clarity and ease of use.
 
+## AOD Behavior
+
+ZeppOS treats AOD watchfaces as a separate instance. UI updates triggered only by `onResume`/`resume_call` in the normal watchface do not refresh the AOD instance. To keep time and BG values current in AOD, the watchface registers a per-minute update (`Time.onPerMinute`) in the watchface itself. This runs in both normal and AOD instances and keeps the AOD UI fresh without requiring a full resume.
+
 ## Background
 
 This project is inspired by and borrows significantly from existing xDrip ZeppOS projects. Special thanks to the developers of the following repositories for their foundational work:
