@@ -2,6 +2,7 @@ import { COMPANION_APP_ID, BG_DATA_FILE } from "../libs/constants";
 import * as hmUI from "@zos/ui";
 import { log } from "@zos/utils";
 import { Time } from "@zos/sensor";
+import { getTimeFormat } from "@zos/settings";
 import { launchApp } from "@zos/router";
 import { openSync, readSync, closeSync, O_RDONLY } from "@zos/fs";
 const logger = log.getLogger("wf-nightscout-z3");
@@ -199,7 +200,13 @@ WatchFace({
       console.log("updating existing UI elements");
       const hours = time.getHours();
       const minutes = time.getMinutes();
-      const timeText = `${hours % 12 || 12}:${minutes.toString().padStart(2, "0")}`;
+      const timeFormatRaw = typeof getTimeFormat === "function" ? getTimeFormat() : 1;
+      const timeFormat =
+        typeof timeFormatRaw === "number" ? timeFormatRaw : Number(timeFormatRaw);
+      const is24Hour = timeFormat === 1;
+      const displayHours = is24Hour ? hours : hours % 12 || 12;
+      const hourText = is24Hour ? displayHours.toString().padStart(2, "0") : displayHours.toString();
+      const timeText = `${hourText}:${minutes.toString().padStart(2, "0")}`;
       wfTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
       aodTitleText.setProperty(hmUI.prop.MORE, { text: timeText });
       //update wfDate
