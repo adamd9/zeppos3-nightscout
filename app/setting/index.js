@@ -4,9 +4,15 @@ import { gettext } from 'i18n';
 const DEFAULT_SETTINGS = {
   urlConfig: '',
   accessToken: '',
+  bgUnits: 'mgdl',
   updateInterval: 3, // Default interval in minutes
   disableUpdates: false,
 };
+
+const PROJECT_URL = 'https://github.com/adamd9/zeppos3-nightscout';
+const ISSUES_URL = `${PROJECT_URL}/issues`;
+const SUPPORT_EMAIL = 'adam@greatmachineinthesky.com';
+const EMAIL_SUPPORT_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Nightscout ZeppOS Watchface - Support request')}`;
 
 AppSettingsPage({
   state: {
@@ -17,6 +23,7 @@ AppSettingsPage({
     this.state.settings = {
       urlConfig: this.getUrlConfig(),
       accessToken: this.getAccessToken(),
+      bgUnits: this.getBgUnits(),
       updateInterval: this.getUpdateInterval(),
       disableUpdates: this.getDisableUpdates(),
     };
@@ -40,7 +47,26 @@ AppSettingsPage({
   setAccessToken(value) {
     this.state.settings.accessToken = value;
     this.state.props.settingsStorage.setItem('accessToken', JSON.stringify(value));
-  },  
+  },
+  getBgUnits() {
+    const storedBgUnits = this.state.props.settingsStorage.getItem('bgUnits');
+    if (!storedBgUnits) {
+      return DEFAULT_SETTINGS.bgUnits;
+    }
+
+    const parsed = String(JSON.parse(storedBgUnits)).toLowerCase();
+    return parsed === 'mmol' || parsed === 'mmol/l' || parsed === 'mmoll'
+      ? 'mmol'
+      : 'mgdl';
+  },
+  setBgUnits(value) {
+    const parsed = String(value || '').toLowerCase();
+    const normalized = parsed === 'mmol' || parsed === 'mmol/l' || parsed === 'mmoll'
+      ? 'mmol'
+      : 'mgdl';
+    this.state.settings.bgUnits = normalized;
+    this.state.props.settingsStorage.setItem('bgUnits', JSON.stringify(normalized));
+  },
   // Retrieve Update Interval from storage or use default
   getUpdateInterval() {
     const storedUpdateInterval = this.state.props.settingsStorage.getItem('updateInterval');
@@ -124,7 +150,21 @@ AppSettingsPage({
           onChange: (val) => {
             this.setAccessToken(val);
           }
-        }),        
+        }),
+        Toggle({
+          label: 'Use mmol/L units',
+          value: this.state.settings.bgUnits === 'mmol',
+          onChange: (val) => {
+            this.setBgUnits(val ? 'mmol' : 'mgdl');
+          }
+        }),
+        Text({
+          paragraph: true,
+          style: {
+            paddingBottom: "8px",
+            fontSize: "11px"
+          }
+        },"Default OFF = mg/dL, ON = mmol/L"),
         TextInput({
           minHeight: "30px", 
           label: gettext('Update Interval (minutes)'),
@@ -165,7 +205,7 @@ AppSettingsPage({
           }
         },"ZeppOS Nightscout app by Adam Dinneen 2024"),
         Link({
-          source: "https://github.com/adamd9/zeppos3-nightscout",
+          source: PROJECT_URL,
         },"GitHub Project"),
         Text({
           paragraph: false,
@@ -173,8 +213,23 @@ AppSettingsPage({
           }
         }," | "),
         Link({
-          source: "mailto:adam@greatmachineinthesky.com?subject=Nightscout%20ZeppOS%20Watchface%20-%20Report%20an%20Issue&body=Nightscout%20URL:%20+%20nightscoutUrl%0APlease%20provide%20a%20description%20of%20the%20issue.%20Leaving%20your%20Nightscout%20URL%20included%20means%20that%20the%20developer%20can%20replicate%20the%20issue%20and%20fix%20it.%0A%0ADescription%20of%20issue:%20",
+          source: ISSUES_URL,
         },"Report an issue"),
+        Text({
+          paragraph: false,
+          style: {
+          }
+        }," | "),
+        Link({
+          source: EMAIL_SUPPORT_URL,
+        },"Email support"),
+        Text({
+          paragraph: true,
+          style: {
+            paddingTop: "6px",
+            fontSize: "11px"
+          }
+        },`Support email: ${SUPPORT_EMAIL}`),
       ]
     );
   }
